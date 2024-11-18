@@ -1,5 +1,28 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            yaml '''
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                  labels:
+                    app: jenkins-agent
+                spec:
+                  containers:
+                  - name: maven
+                    image: maven:3.9-amazoncorretto-17
+                    command:
+                    - cat
+                    tty: true
+                    volumeMounts:
+                    - name: m2
+                      mountPath: /root/.m2
+                  volumes:
+                  - name: m2
+                    emptyDir: {}
+            '''
+        }
+    }
     
     environment {
         NEXUS_VERSION = "nexus3"
@@ -12,43 +35,46 @@ pipeline {
     stages {
         stage("Clone code") {
             steps {
-                // Remove the extra git step inside script block
                 checkout scm
             }
         }
         
         stage("Build") {
             steps {
-                sh 'mvn clean package'
+                container('maven') {
+                    sh 'mvn clean package'
+                }
             }
         }
         
         stage("Push to Nexus") {
             steps {
-                script {
-                    pom = readMavenPom file: "pom.xml"
-                    filesByGlob = findFiles(glob: "target/*.jar")
-                    artifactPath = filesByGlob[0].path
-                    
-                    nexusArtifactUploader(
-                        nexusVersion: NEXUS_VERSION,
-                        protocol: NEXUS_PROTOCOL,
-                        nexusUrl: NEXUS_URL,
-                        groupId: pom.groupId,
-                        version: pom.version,
-                        repository: NEXUS_REPOSITORY,
-                        credentialsId: NEXUS_CREDENTIAL_ID,
-                        artifacts: [
-                            [artifactId: pom.artifactId,
-                             classifier: '',
-                             file: artifactPath,
-                             type: 'jar'],
-                            [artifactId: pom.artifactId,
-                             classifier: '',
-                             file: "pom.xml",
-                             type: "pom"]
-                        ]
-                    )
+                container('maven') {
+                    script {
+                        pom = readMavenPom file: "pom.xml"
+                        filesByGlob = findFiles(glob: "target/*.jar")
+                        artifactPath = filesByGlob[0].path
+                        
+                        nexusArtifactUploader(
+                            nexusVersion: NEXUS_VERSION,
+                            protocol: NEXUS_PROTOCOL,
+                            nexusUrl: NEXUS_URL,
+                            groupId: pom.groupId,
+                            version: pom.version,
+                            repository: NEXUS_REPOSITORY,
+                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            artifacts: [
+                                [artifactId: pom.artifactId,
+                                 classifier: '',
+                                 file: artifactPath,
+                                 type: 'jar'],
+                                [artifactId: pom.artifactId,
+                                 classifier: '',
+                                 file: "pom.xml",
+                                 type: "pom"]
+                            ]
+                        )
+                    }
                 }
             }
         }
