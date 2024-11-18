@@ -12,11 +12,8 @@ pipeline {
     stages {
         stage("Clone code") {
             steps {
-                script {
-                    // If you're using Git
-                    git 'https://github.com/akritkbehera/nexus-demo-jenkins.git'
-                    // Or just copy the files to workspace if testing locally
-                }
+                // Remove the extra git step inside script block
+                checkout scm
             }
         }
         
