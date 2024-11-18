@@ -14,7 +14,7 @@ pipeline {
             steps {
                 script {
                     // If you're using Git
-                    git 'https://your-git-repo-url/nexus-demo.git'
+                    git 'https://github.com/akritkbehera/nexus-demo-jenkins.git'
                     // Or just copy the files to workspace if testing locally
                 }
             }
